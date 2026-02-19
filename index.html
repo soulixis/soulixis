@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOULIXIS</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap');
+
+  :root {
+    --green:    #00ff41;
+    --dg:       #00aa2a;
+    --ddg:      #003310;
+    --bg:       #000300;
+    --surface:  #000f03;
+    --pink:     #ff2d78;
+    --purple:   #cc44ff;
+    --dim:      #004410;
+    --border:   #002a0a;
+  }
+
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  html { font-size: clamp(10px, 1.1vw, 15px); }
+
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* scanlines */
+  body::before {
+    content:''; position:fixed; inset:0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.22) 2px, rgba(0,0,0,0.22) 4px);
+    pointer-events:none; z-index:9999;
+  }
+  /* vignette */
+  body::after {
+    content:''; position:fixed; inset:0;
+    background: radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(0,0,0,0.88) 100%);
+    pointer-events:none; z-index:9998;
+  }
+
+  .page {
+    position:relative; z-index:1;
+    width: min(820px, 94vw);
+    margin:0 auto;
+    padding: clamp(30px,5vh,64px) 0 clamp(50px,7vh,80px);
+    display:flex; flex-direction:column; align-items:center;
+    gap: clamp(18px,3vh,34px);
+  }
+
+  /* ── HERO ── */
+  .hero { text-align:center; display:flex; flex-direction:column; align-items:center; gap:clamp(8px,1.5vh,14px); }
+
+  .ascii-title {
+    font-family:'Share Tech Mono', monospace;
+    font-size: clamp(6px, 1vw, 11px);
+    line-height:1.2;
+    white-space:pre;
+    letter-spacing:0;
+    color: var(--pink);
+    text-shadow: 0 0 10px rgba(255,45,120,0.8), 0 0 24px rgba(255,45,120,0.3);
+    animation: flicker 8s infinite;
+  }
+
+  .tagline {
+    font-size: clamp(9px,1.2vw,13px);
+    color: var(--dg);
+    letter-spacing:6px;
+  }
+
+  .cursor::after { content:'_'; animation:blink 1s step-end infinite; }
+
+  /* ── PROMPT LABELS ── */
+  .prompt {
+    font-size: clamp(8px,1vw,11px);
+    color: var(--dim);
+    align-self:flex-start;
+    margin-bottom: clamp(-14px,-2vh,-10px);
+  }
+  .prompt .cmd { color: var(--dg); }
+
+  /* ── BOX ── */
+  .box { width:100%; border:1px solid var(--border); position:relative; }
+  .box-label {
+    position:absolute; top:-0.65em; left:clamp(10px,2vw,18px);
+    background:var(--bg); padding:0 8px;
+    font-size:clamp(7px,0.9vw,10px); color:var(--dim); letter-spacing:3px;
+  }
+  .box-inner { padding: clamp(12px,2vh,22px) clamp(14px,2.5vw,26px); }
+
+  /* ── VISUALIZER ── */
+  .viz-box {
+    width:100%; background:var(--surface);
+    border:1px solid var(--border);
+    padding: clamp(12px,2vh,20px) clamp(14px,2.5vw,24px);
+    display:flex; align-items:stretch;
+    gap: clamp(12px,2vw,20px);
+    position:relative; overflow:hidden;
+    min-height: clamp(80px,12vw,120px);
+  }
+  .viz-box::before {
+    content:'[ PLAYBACK ]';
+    position:absolute; top:-0.65em; left:clamp(10px,2vw,18px);
+    background:var(--surface); padding:0 8px;
+    font-size:clamp(7px,0.9vw,10px); color:var(--dim); letter-spacing:3px;
+  }
+
+  /* matrix rain column */
+  .matrix-col {
+    display:flex; flex-direction:column; justify-content:flex-start;
+    width: clamp(10px,1.5vw,16px);
+    overflow:hidden;
+    font-size: clamp(7px,0.9vw,11px);
+    line-height:1.2;
+    color: var(--dim);
+    transition: color 0.2s;
+    letter-spacing:0;
+    user-select:none;
+  }
+  .matrix-col.live { color:var(--green); text-shadow:0 0 6px var(--green); }
+  .matrix-col .head { color:#fff; text-shadow:0 0 12px #fff, 0 0 4px var(--green); }
+
+  .matrix-wrap {
+    flex:1;
+    display:flex; gap:clamp(2px,0.3vw,4px);
+    align-items:flex-start;
+    overflow:hidden;
+  }
+
+  /* waveform oscilloscope */
+  .scope {
+    flex-shrink:0;
+    width: clamp(100px,16vw,160px);
+    display:flex; flex-direction:column;
+    align-items:flex-end;
+    gap:6px;
+  }
+
+  .scope-screen {
+    width:100%;
+    font-family:'Share Tech Mono',monospace;
+    font-size: clamp(6px,0.8vw,9px);
+    line-height:1.1;
+    white-space:pre;
+    letter-spacing:0;
+    color: var(--dim);
+    border:1px solid var(--border);
+    padding:4px 6px;
+    background: #000800;
+  }
+
+  .scope-screen.live {
+    color: var(--green);
+    text-shadow: 0 0 5px var(--green);
+    border-color: var(--dg);
+  }
+
+  .scope-label { font-size:clamp(6px,0.75vw,8px); color:var(--dim); letter-spacing:2px; }
+  .scope-track { font-size:clamp(6px,0.8vw,9px); color:var(--green); text-align:right; line-height:1.5; word-break:break-all; }
+  .scope-time {
+    font-family:'VT323',monospace;
+    font-size:clamp(18px,3vw,28px);
+    color:var(--green);
+  }
+
+  /* ── PROGRESS ── */
+  .progress-row {
+    width:100%;
+    display:flex; align-items:center; gap:8px;
+    font-size:clamp(8px,1vw,11px);
+    color:var(--dim);
+    background:var(--surface);
+    border:1px solid var(--border); border-top:none;
+    padding: clamp(8px,1.2vh,14px) clamp(14px,2.5vw,24px);
+  }
+  .progress-row span { flex-shrink:0; }
+
+  .prog-track {
+    flex:1; height:1em; line-height:1em;
+    overflow:hidden; cursor:pointer; position:relative;
+    font-size:clamp(8px,1vw,11px);
+  }
+  .prog-bg { color:var(--dim); white-space:nowrap; }
+  .prog-fill {
+    position:absolute; top:0; left:0;
+    width:0%; overflow:hidden; white-space:nowrap;
+    color:var(--green); text-shadow:0 0 5px var(--green);
+    transition:width 0.1s linear;
+  }
+  .prog-time { min-width:3.5em; text-align:right; flex-shrink:0; }
+
+  /* ── TRACKS ── */
+  .tracks { width:100%; display:flex; flex-direction:column; }
+
+  .track {
+    display:flex; align-items:center;
+    gap:clamp(8px,1.5vw,16px);
+    padding: clamp(8px,1.2vh,13px) clamp(14px,2.5vw,22px);
+    border-bottom:1px solid var(--border);
+    position:relative; overflow:hidden;
+    transition:background 0.1s;
+  }
+  .track:first-child { border-top:1px solid var(--border); }
+  .track:hover { background:var(--ddg); }
+  .track.active { background:var(--ddg); }
+
+  .track-num { font-size:clamp(8px,1vw,11px); color:var(--dim); flex-shrink:0; width:24px; }
+  .track-arrow { color:var(--dim); flex-shrink:0; font-size:clamp(8px,1vw,11px); transition:color 0.1s; }
+  .track.active .track-arrow { color:var(--green); text-shadow:0 0 8px var(--green); }
+  .track-title { flex:1; font-size:clamp(8px,1.1vw,12px); color:var(--dg); letter-spacing:1px; transition:color 0.1s; }
+  .track.active .track-title { color:var(--green); text-shadow:0 0 8px var(--green); }
+
+  .track-dur {
+    font-family:'VT323',monospace;
+    font-size:clamp(14px,2.2vw,20px);
+    color:var(--dim); flex-shrink:0; width:40px; text-align:right;
+    transition:color 0.1s;
+  }
+  .track.active .track-dur { color:var(--dg); }
+
+  .play-btn {
+    background:none; border:1px solid var(--border);
+    color:var(--dim);
+    font-family:'Share Tech Mono',monospace;
+    font-size:clamp(7px,0.9vw,10px);
+    padding: clamp(4px,0.7vh,7px) clamp(6px,1vw,10px);
+    cursor:pointer; flex-shrink:0; transition:all 0.1s; letter-spacing:1px;
+  }
+  .play-btn:hover { border-color:var(--dg); color:var(--dg); background:var(--ddg); }
+  .track.active .play-btn { border-color:var(--green); color:var(--green); background:var(--ddg); text-shadow:0 0 6px var(--green); }
+
+  .track-bar {
+    position:absolute; bottom:0; left:0;
+    height:1px; background:var(--green);
+    box-shadow:0 0 4px var(--green);
+    width:0%; transition:width 0.1s linear;
+  }
+
+  audio { display:none; }
+
+  /* ── KIT ── */
+  .kit-pre {
+    font-family:'Share Tech Mono',monospace;
+    font-size:clamp(7px,0.95vw,11px);
+    line-height:1.6; white-space:pre; letter-spacing:0;
+    color:var(--dg);
+  }
+  .kit-pre .hl { color:var(--green); text-shadow:0 0 6px var(--green); }
+  .kit-pre .ph { color:var(--pink); text-shadow:0 0 10px var(--pink); }
+
+  .buy-link {
+    display:inline-block;
+    background:var(--green); color:var(--bg);
+    text-decoration:none;
+    font-family:'Share Tech Mono',monospace;
+    font-size:clamp(8px,1.1vw,12px);
+    padding: clamp(10px,1.5vh,15px) clamp(16px,3vw,26px);
+    letter-spacing:2px; text-shadow:none;
+    box-shadow:2px 2px 0 var(--dg);
+    transition:all 0.1s;
+    margin-top:clamp(8px,1.5vh,14px);
+  }
+  .buy-link:hover { background:var(--dg); box-shadow:3px 3px 0 var(--border); }
+  .buy-link:active { transform:translate(2px,2px); box-shadow:none; }
+
+  /* ── SOCIALS ── */
+  .socials { display:flex; gap:clamp(8px,1.5vw,14px); flex-wrap:wrap; justify-content:center; }
+  .social-link {
+    color:var(--dim); text-decoration:none;
+    font-size:clamp(7px,0.95vw,11px);
+    border:1px solid var(--border);
+    padding:clamp(8px,1.2vh,12px) clamp(12px,2vw,18px);
+    background:var(--surface); transition:all 0.12s; letter-spacing:1px;
+  }
+  .social-link:hover { border-color:var(--green); color:var(--green); background:var(--ddg); }
+
+  .footer { font-size:clamp(6px,0.8vw,9px); color:var(--dim); text-align:center; letter-spacing:3px; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes flicker {
+    0%,92%,100%{opacity:1;} 93%{opacity:.75;} 95%{opacity:.95;} 96%{opacity:.5;} 97%{opacity:1;}
+  }
+  @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0;} }
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:480px){
+    .ascii-title{font-size:4.5px;}
+    .scope{display:none;}
+    .matrix-col{width:10px; font-size:6px;}
+  }
+  @media(min-width:1400px){ html{font-size:16px;} .page{width:1000px;} }
+  @media(min-width:2000px){ html{font-size:20px;} .page{width:1200px;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HERO -->
+  <div class="hero">
+    <pre class="ascii-title"> ####   ###   #   #  #      #####  #   #  #####   ####
+#      #   #  #   #  #        #     # #     #    #    
+ ###   #   #  #   #  #        #      #      #     ### 
+    #  #   #  #   #  #        #     # #     #        #
+####    ###    ###   #####  #####  #   #  #####  #### </pre>
+    <div class="tagline">&gt; PRODUCER_<span class="cursor"></span></div>
+  </div>
+
+  <!-- VISUALIZER -->
+  <div class="prompt">&gt; <span class="cmd">audio.visualizer</span> --live</div>
+
+  <div class="viz-box">
+    <!-- matrix rain -->
+    <div class="matrix-wrap" id="matrix-wrap"></div>
+
+    <!-- oscilloscope -->
+    <div class="scope">
+      <div class="scope-label">// SCOPE</div>
+      <pre class="scope-screen" id="scope-screen">--------
+--------
+--------
+--------
+--------</pre>
+      <div class="scope-label">// NOW PLAYING</div>
+      <div class="scope-track" id="viz-title">[ NONE ]</div>
+      <div class="scope-time" id="viz-time">0:00</div>
+    </div>
+  </div>
+
+  <div class="progress-row">
+    <span>[</span>
+    <div class="prog-track" id="prog-track">
+      <div class="prog-bg" id="prog-bg"></div>
+      <div class="prog-fill" id="prog-fill"></div>
+    </div>
+    <span>]</span>
+    <span class="prog-time" id="prog-time">0:00</span>
+  </div>
+
+  <audio id="audio"></audio>
+
+  <!-- TRACKS -->
+  <div class="prompt">&gt; <span class="cmd">tracklist.load</span> --preview</div>
+  <div class="box">
+    <div class="box-label">[ PREVIEWS ]</div>
+    <div class="tracks" id="tracks"></div>
+  </div>
+
+  <!-- KIT -->
+  <div class="prompt">&gt; <span class="cmd">store.get</span> --new-release</div>
+  <div class="box">
+    <div class="box-label">[ NEW DROP ]</div>
+    <div class="box-inner" style="display:flex;flex-direction:column;align-items:flex-start;">
+<pre class="kit-pre"><span class="hl">+--------------------------------------------------+
+|  SOULFORGE VOL. 2                                |
+|  Drum Kit / Sample Pack                          |
++--------------------------------------------------+
+|  808s  .  Drums  .  Melody Loops  .  One Shots   |
+|  Instant Download after purchase                 |
++--------------------------------------------------+</span>
+|  PRICE:  <span class="ph">$12.99</span>                                    |
+<span class="hl">+--------------------------------------------------+</span></pre>
+      <a class="buy-link" href="https://payhip.com/b/omDf6" target="_blank">[ EXECUTE PURCHASE ]</a>
+    </div>
+  </div>
+
+  <!-- SOCIALS -->
+  <div class="prompt">&gt; <span class="cmd">contact.list</span></div>
+  <div class="socials">
+    <a class="social-link" href="https://instagram.com/prod.soulixis" target="_blank">[@] prod.soulixis</a>
+    <a class="social-link" href="mailto:linksoulixis@gmail.com">[MAIL] linksoulixis@gmail.com</a>
+  </div>
+
+  <div class="footer">// (C) 2026 SOULIXIS -- ALL RIGHTS RESERVED //</div>
+</div>
+
+<script>
+const tracks = [
+  { title:"TRACK_01", src:"audio/track_01.mp3" },
+  { title:"TRACK_02", src:"audio/track_02.mp3" },
+  { title:"TRACK_03", src:"audio/track_03.mp3" },
+  { title:"TRACK_04", src:"audio/track_04.mp3" },
+  { title:"TRACK_05", src:"audio/track_05.mp3" },
+];
+
+const PROG_LEN = 38;
+const MATRIX_COLS = 22;
+const MATRIX_ROWS = 8;
+const MATRIX_CHARS = 'SOULIXIS01アイウエオカキクケコ#$%@!01';
+
+const audio      = document.getElementById('audio');
+const vizTitle   = document.getElementById('viz-title');
+const vizTime    = document.getElementById('viz-time');
+const scopeEl    = document.getElementById('scope-screen');
+const progFill   = document.getElementById('prog-fill');
+const progBg     = document.getElementById('prog-bg');
+const progTime   = document.getElementById('prog-time');
+const progTrack  = document.getElementById('prog-track');
+const matrixWrap = document.getElementById('matrix-wrap');
+const container  = document.getElementById('tracks');
+
+let current = -1, playing = false;
+let matrixInterval = null, scopeInterval = null;
+
+// ── PROGRESS INIT ──
+const EMPTY = '-'.repeat(PROG_LEN);
+progBg.textContent = EMPTY;
+progFill.textContent = '='.repeat(PROG_LEN);
+
+// ── MATRIX RAIN ──
+const cols = [];
+for (let c = 0; c < MATRIX_COLS; c++) {
+  const el = document.createElement('div');
+  el.className = 'matrix-col';
+  el.style.height = (MATRIX_ROWS * 1.2) + 'em';
+  el.style.overflow = 'hidden';
+  matrixWrap.appendChild(el);
+  cols.push({ el, stream: [], head: 0, speed: 1 + Math.floor(Math.random()*3) });
+}
+
+function randChar() {
+  return MATRIX_CHARS[Math.floor(Math.random()*MATRIX_CHARS.length)];
+}
+
+function initCol(col) {
+  col.stream = Array.from({length: MATRIX_ROWS}, () => randChar());
+  col.head = 0;
+  col.speed = 1 + Math.floor(Math.random()*3);
+}
+
+cols.forEach(initCol);
+
+let matrixTick = 0;
+function stepMatrix() {
+  cols.forEach((col, ci) => {
+    if (matrixTick % col.speed !== 0) return;
+    // shift stream down, new char at top
+    col.stream.unshift(randChar());
+    if (col.stream.length > MATRIX_ROWS) col.stream.pop();
+    col.head = 0; // head is always top
+
+    const html = col.stream.map((ch, r) =>
+      r === 0
+        ? `<span class="head">${ch}</span>`
+        : `${ch}`
+    ).join('<br>');
+    col.el.innerHTML = html;
+  });
+  matrixTick++;
+}
+
+function startMatrix() {
+  cols.forEach(c => { c.el.classList.add('live'); });
+  if (!matrixInterval) matrixInterval = setInterval(stepMatrix, 80);
+}
+
+function stopMatrix() {
+  cols.forEach(c => {
+    c.el.classList.remove('live');
+    c.el.innerHTML = Array.from({length:MATRIX_ROWS}, () => '.').join('<br>');
+  });
+  if (matrixInterval) { clearInterval(matrixInterval); matrixInterval = null; }
+}
+
+// ── OSCILLOSCOPE ──
+const SCOPE_W = 8, SCOPE_H = 5;
+const SCOPE_CHARS = [' ', '.', '-', '~', '^', '*'];
+
+function buildScope(active) {
+  const rows = [];
+  for (let r = 0; r < SCOPE_H; r++) {
+    let line = '';
+    for (let c = 0; c < SCOPE_W; c++) {
+      if (!active) { line += '-'; continue; }
+      const wave = Math.sin((c / SCOPE_W) * Math.PI * 2 + Date.now()/300) * 2;
+      const mid = Math.floor(SCOPE_H / 2);
+      const pos = mid - Math.round(wave);
+      line += (r === pos) ? (Math.random() > 0.7 ? '*' : '^') : (r === mid ? '-' : ' ');
+    }
+    rows.push(line);
+  }
+  return rows.join('\n');
+}
+
+function startScope() {
+  scopeEl.classList.add('live');
+  if (!scopeInterval) scopeInterval = setInterval(() => {
+    scopeEl.textContent = buildScope(true);
+  }, 100);
+}
+
+function stopScope() {
+  scopeEl.classList.remove('live');
+  scopeEl.textContent = buildScope(false);
+  if (scopeInterval) { clearInterval(scopeInterval); scopeInterval = null; }
+}
+
+// ── UTILS ──
+function fmt(s) {
+  if (!s || isNaN(s)) return '0:00';
+  return `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+}
+
+function updateProgress(pct) {
+  const filled = Math.round(pct / 100 * PROG_LEN);
+  const head = filled > 0 ? '='.repeat(filled - 1) + '>' : '';
+  progFill.textContent = head;
+  progFill.style.width = pct.toFixed(1) + '%';
+}
+
+// ── RENDER TRACKS ──
+tracks.forEach((t, i) => {
+  const el = document.createElement('div');
+  el.className = 'track'; el.id = `t${i}`;
+  el.innerHTML = `
+    <div class="track-num">${String(i+1).padStart(2,'0')}.</div>
+    <div class="track-arrow">&gt;</div>
+    <div class="track-title">${t.title}</div>
+    <div class="track-dur" id="dur${i}">--:--</div>
+    <button class="play-btn" id="btn${i}" onclick="toggle(${i})">[PLAY]</button>
+    <div class="track-bar" id="tb${i}"></div>
+  `;
+  container.appendChild(el);
+  const tmp = new Audio(t.src);
+  tmp.addEventListener('loadedmetadata', () => {
+    document.getElementById(`dur${i}`).textContent = fmt(tmp.duration);
+  });
+});
+
+function reset(i) {
+  document.getElementById(`t${i}`).classList.remove('active');
+  document.getElementById(`btn${i}`).textContent = '[PLAY]';
+  document.getElementById(`tb${i}`).style.width = '0%';
+}
+
+function setPlayState(state) {
+  playing = state;
+  state ? startMatrix() : stopMatrix();
+  state ? startScope()  : stopScope();
+  if (current >= 0)
+    document.getElementById(`btn${current}`).textContent = state ? '[STOP]' : '[PLAY]';
+}
+
+function toggle(i) {
+  if (current === i && playing) { audio.pause(); setPlayState(false); return; }
+  if (current !== i) {
+    if (current >= 0) reset(current);
+    current = i;
+    audio.src = tracks[i].src;
+    document.getElementById(`t${i}`).classList.add('active');
+    vizTitle.textContent = tracks[i].title;
+  }
+  audio.play()
+    .then(() => setPlayState(true))
+    .catch(() => { vizTitle.textContent = '[ FILE NOT FOUND ]'; });
+}
+
+audio.addEventListener('timeupdate', () => {
+  if (!audio.duration) return;
+  const pct = audio.currentTime / audio.duration * 100;
+  updateProgress(pct);
+  if (current >= 0) document.getElementById(`tb${current}`).style.width = pct.toFixed(1)+'%';
+  vizTime.textContent = fmt(audio.currentTime);
+  progTime.textContent = fmt(audio.currentTime);
+});
+
+audio.addEventListener('ended', () => {
+  setPlayState(false);
+  if (current >= 0) reset(current);
+  if (current < tracks.length - 1) {
+    toggle(current + 1);
+  } else {
+    current = -1;
+    updateProgress(0);
+    vizTitle.textContent = '[ NONE ]';
+    vizTime.textContent = '0:00';
+    progTime.textContent = '0:00';
+  }
+});
+
+progTrack.addEventListener('click', e => {
+  if (!audio.duration) return;
+  const r = e.currentTarget.getBoundingClientRect();
+  audio.currentTime = ((e.clientX - r.left) / r.width) * audio.duration;
+});
+
+// init matrix idle state
+stopMatrix();
+stopScope();
+</script>
+</body>
+</html>
