@@ -310,6 +310,49 @@
   @media(min-width:1400px){html{font-size:16px;} .page{width:880px;}}
   @media(min-width:2000px){html{font-size:19px;} .page{width:1100px;}}
 
+  /* ── MOBILE PERFORMANCE: dark mode matches light mode's graphic profile on mobile ── */
+  @media(max-width:768px){
+
+    /* 1. Kill the scanline overlay — full-viewport fixed layer that repaints constantly */
+    body::before{display:none;}
+
+    /* 2. Kill titlePulse — animates 4 layered text-shadows up to 100px blur, not GPU-composited */
+    [data-theme="dark"] .site-title{animation:flicker 10s infinite;}
+
+    /* 3. Strip ambient container box-shadows (viz, kit) — always painting even at idle */
+    [data-theme="dark"] .viz,
+    [data-theme="dark"] .viz:hover,
+    [data-theme="dark"] .kit,
+    [data-theme="dark"] .kit:hover{box-shadow:none;}
+
+    /* 4. Strip all static text-shadow glows scattered across the page */
+    [data-theme="dark"] .lbl,
+    [data-theme="dark"] .viz-track,
+    [data-theme="dark"] .viz-time,
+    [data-theme="dark"] .prog-fill,
+    [data-theme="dark"] .track-row.active .t-title,
+    [data-theme="dark"] .kit-name,
+    [data-theme="dark"] .kit-price,
+    [data-theme="dark"] .social-link{text-shadow:none;}
+
+    /* 5. Strip glow box-shadows from interactive hover states */
+    [data-theme="dark"] .t-btn:hover,
+    [data-theme="dark"] .theme-toggle:hover,
+    [data-theme="dark"] .social-link:hover,
+    [data-theme="dark"] .kit-tag:hover,
+    [data-theme="dark"] .buy-btn,
+    [data-theme="dark"] .buy-btn:hover{box-shadow:none;}
+
+    /* 6. Strip vinyl spinning glow */
+    [data-theme="dark"] .vinyl.spinning{text-shadow:none;}
+
+    /* 7. Strip live bar glow (18 bars updating at 120ms interval) */
+    [data-theme="dark"] .bar.live{text-shadow:none;}
+
+    /* 8. Strip active track underline glow */
+    [data-theme="dark"] .track-row.active::after{box-shadow:none;}
+  }
+
 </style>
 </head>
 <body>
@@ -378,14 +421,14 @@
 
   <div class="socials">
     <a class="social-link" href="https://instagram.com/prod.soulixis" target="_blank">[@] prod.soulixis</a>
-    <a class="social-link" href="mailto:linksoulixis@gmail.com">[~] linksoulixis@gmail.com</a>
+    <a class="social-link" href="/cdn-cgi/l/email-protection#a2cecbccc9d1cdd7cecbdacbd1e2c5cfc3cbce8cc1cdcf">[~] <span class="__cf_email__" data-cfemail="0f636661647c607a636677667c4f68626e6663216c6062">[email&#160;protected]</span></a>
   </div>
 
   <div class="footer">(c) 2026 PROD.SOULIXIS -- ALL RIGHTS RESERVED</div>
 
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 /* ── THEME TOGGLE ── */
 var isDark = true;
 function toggleTheme() {
@@ -578,10 +621,11 @@ audioEl.addEventListener('ended', function() {
 
 progWrap.addEventListener('click', function(e) {
   if (!audioEl.duration) return;
-  var r = e.currentTarget.getBoundingClientRect();
-  audioEl.currentTime = ((e.clientX - r.left) / r.width) * audioEl.duration;
+  var rect = progWrap.getBoundingClientRect();
+  var pct = (e.clientX - rect.left) / rect.width * 100;
+  audioEl.currentTime = pct / 100 * audioEl.duration;
 });
-</script>
 
+</script>
 </body>
 </html>
