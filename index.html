@@ -40,6 +40,7 @@
     content:''; position:fixed; inset:0; z-index:9999; pointer-events:none;
     background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.05) 3px,rgba(0,0,0,.05) 4px);
     opacity:var(--scan-op); transition:opacity .6s ease;
+    will-change:opacity; transform:translateZ(0);
   }
 
   /* THEME TOGGLE */
@@ -86,7 +87,7 @@
     cursor:default;
     transition:color .6s ease, letter-spacing .45s cubic-bezier(.4,0,.2,1);
   }
-  [data-theme="dark"] .site-title{animation:flicker 10s infinite, titlePulse 3s ease-in-out infinite alternate;}
+  [data-theme="dark"] .site-title{animation:flicker 10s infinite, titlePulse 3s ease-in-out infinite alternate; will-change:filter;}
   [data-theme="light"] .site-title{animation:flicker 10s infinite; text-shadow:none;}
   .site-title:hover{letter-spacing:clamp(6px,1.6vw,14px);}
   [data-theme="dark"] .site-title:hover{text-shadow:0 0 30px var(--accent-glow),0 0 60px rgba(255,0,187,.22);}
@@ -298,15 +299,23 @@
 
   /* ANIMATIONS */
   @keyframes titlePulse{
-    0%  {text-shadow:0 0 8px #fff, 0 0 16px var(--purple-glow), 0 0 32px var(--accent-glow), 0 0 64px var(--accent-glow);}
-    100%{text-shadow:0 0 18px #fff, 0 0 34px var(--purple-glow), 0 0 68px var(--accent-glow), 0 0 100px rgba(255,0,187,.15);}
+    0%  {filter:brightness(.9) drop-shadow(0 0 8px var(--accent-glow));}
+    100%{filter:brightness(1.1) drop-shadow(0 0 18px var(--accent-glow));}
   }
   @keyframes flicker{
     0%,90%,100%{opacity:1;}
     91%{opacity:.75;} 92.5%{opacity:.95;} 94%{opacity:.45;} 95.5%{opacity:1;} 97%{opacity:.8;} 97.8%{opacity:1;}
   }
 
-  @media(max-width:480px){.viz-meta{display:none;} .bars{height:36px;} .theme-toggle{font-size:9px;padding:5px 9px;}}
+  @media(max-width:480px){.viz-meta{display:none;} .bars{height:36px;} .theme-toggle{font-size:9px;padding:5px 9px;}
+    [data-theme="dark"] .site-title{animation:flicker 10s infinite; will-change:auto;}
+    [data-theme="dark"] .viz,[data-theme="dark"] .kit{box-shadow:none;}
+    [data-theme="dark"] .viz:hover,[data-theme="dark"] .kit:hover{box-shadow:none;}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .site-title,.tagline,.track-row,.t-btn,.buy-btn,.social-link,.theme-toggle,.kit-tag{transition:none!important; animation:none!important;}
+    [data-theme="dark"] .site-title{text-shadow:0 0 12px var(--accent-glow);}
+  }
   @media(min-width:1400px){html{font-size:16px;} .page{width:880px;}}
   @media(min-width:2000px){html{font-size:19px;} .page{width:1100px;}}
 
@@ -378,14 +387,14 @@
 
   <div class="socials">
     <a class="social-link" href="https://instagram.com/prod.soulixis" target="_blank">[@] prod.soulixis</a>
-    <a class="social-link" href="mailto:linksoulixis@gmail.com">[~] linksoulixis@gmail.com</a>
+    <a class="social-link" href="/cdn-cgi/l/email-protection#d0bcb9bebba3bfa5bcb9a8b9a390b7bdb1b9bcfeb3bfbd">[~] <span class="__cf_email__" data-cfemail="bbd7d2d5d0c8d4ced7d2c3d2c8fbdcd6dad2d795d8d4d6">[email&#160;protected]</span></a>
   </div>
 
   <div class="footer">(c) 2026 PROD.SOULIXIS -- ALL RIGHTS RESERVED</div>
 
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 /* ── THEME TOGGLE ── */
 var isDark = true;
 function toggleTheme() {
@@ -424,8 +433,16 @@ var listEl   = document.getElementById('tracklist');
 
 var current = -1, playing = false;
 var vinylFrame = 0, vinylInt = null, barsInt = null;
+var vizVisible = true;
 
 progBg.textContent = new Array(PROG_LEN + 1).join('-');
+
+if ('IntersectionObserver' in window) {
+  var vizObserver = new IntersectionObserver(function(entries) {
+    vizVisible = entries[0].isIntersecting;
+  }, { threshold: 0.1 });
+  vizObserver.observe(document.querySelector('.viz'));
+}
 
 var NUM_BARS = 18;
 var barEls = [];
@@ -453,7 +470,7 @@ function buildBar(level, maxRows) {
 }
 
 function animateBars(on) {
-  if (barsInt) clearInterval(barsInt);
+  if (barsInt) { cancelAnimationFrame(barsInt); barsInt = null; }
   if (!on) {
     for (var i = 0; i < barEls.length; i++) {
       barEls[i].textContent = '.';
@@ -462,15 +479,22 @@ function animateBars(on) {
     return;
   }
   var maxR = Math.max(3, Math.floor((barsEl.offsetHeight || 60) / 12));
-  barsInt = setInterval(function() {
-    var prof = PROFILES[profIdx % PROFILES.length];
-    for (var i = 0; i < barEls.length; i++) {
-      var lvl = Math.max(1, Math.min(9, prof[i] + Math.round((Math.random() - 0.5) * 3)));
-      barEls[i].textContent = buildBar(lvl, maxR);
-      barEls[i].classList.add('live');
+  var lastTime = 0;
+  var INTERVAL = 120;
+  function frame(ts) {
+    if (vizVisible && ts - lastTime >= INTERVAL) {
+      lastTime = ts;
+      var prof = PROFILES[profIdx % PROFILES.length];
+      for (var i = 0; i < barEls.length; i++) {
+        var lvl = Math.max(1, Math.min(9, prof[i] + Math.round((Math.random() - 0.5) * 3)));
+        barEls[i].textContent = buildBar(lvl, maxR);
+        barEls[i].classList.add('live');
+      }
+      if (++tick % 7 === 0) profIdx++;
     }
-    if (++tick % 7 === 0) profIdx++;
-  }, 120);
+    barsInt = requestAnimationFrame(frame);
+  }
+  barsInt = requestAnimationFrame(frame);
 }
 
 function spinVinyl(on) {
@@ -573,15 +597,3 @@ audioEl.addEventListener('ended', function() {
     vizTitle.textContent = '[ none ]';
     vizTime.textContent  = '0:00';
     progTime.textContent = '0:00';
-  }
-});
-
-progWrap.addEventListener('click', function(e) {
-  if (!audioEl.duration) return;
-  var r = e.currentTarget.getBoundingClientRect();
-  audioEl.currentTime = ((e.clientX - r.left) / r.width) * audioEl.duration;
-});
-</script>
-
-</body>
-</html>
