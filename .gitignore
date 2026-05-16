@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Build outputs (analytics.min.js is built from source)
+# We'll keep it in git for easy deployment, but it can be regenerated
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
