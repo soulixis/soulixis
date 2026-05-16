@@ -1,0 +1,27 @@
+{
+  "name": "soulixis",
+  "version": "1.0.0",
+  "description": "PROD.SOULIXIS - Audio production portfolio",
+  "main": "index.html",
+  "scripts": {
+    "build": "esbuild analytics.js --bundle --format=iife --outfile=analytics.min.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/soulixis/soulixis.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/soulixis/soulixis/issues"
+  },
+  "homepage": "https://github.com/soulixis/soulixis#readme",
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0"
+  }
+}
